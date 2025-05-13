@@ -42,6 +42,10 @@ fun TaskScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     var newTaskDescription by remember { mutableStateOf("") }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<Task?>(null) }
+    var editedDescription by remember { mutableStateOf("") }
+
 
 
     Column(
@@ -74,17 +78,44 @@ fun TaskScreen(viewModel: TaskViewModel) {
 
 
         tasks.forEach { task ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                elevation = CardDefaults.cardElevation(4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (task.isCompleted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                Text(text = task.description)
-                Button(onClick = { viewModel.toggleTaskCompletion(task) }) {
-                    Text(if (task.isCompleted) "Completada" else "Pendiente")
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(text = task.description)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(onClick = { viewModel.toggleTaskCompletion(task) }) {
+                            Text(if (task.isCompleted) "✅ Completada" else "🕓 Pendiente")
+                        }
+
+                        TextButton(onClick = {
+                            // Función para eliminar individualmente
+                            viewModel.deleteTask(task)
+                        }) {
+                            Text("🗑 Eliminar", color = MaterialTheme.colorScheme.error)
+                        }
+
+                        TextButton(onClick = {
+                            showEditDialog = true
+                            taskToEdit = task
+                            editedDescription = task.description
+                        }) {
+                            Text("✏ Editar")
+                        }
+                    }
                 }
             }
         }
-
 
         Button(
             onClick = { coroutineScope.launch { viewModel.deleteAllTasks() } },
@@ -93,4 +124,40 @@ fun TaskScreen(viewModel: TaskViewModel) {
             Text("Eliminar todas las tareas")
         }
     }
+
+    if (showEditDialog && taskToEdit != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showEditDialog = false
+                taskToEdit = null
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.editTask(taskToEdit!!, editedDescription)
+                    showEditDialog = false
+                    taskToEdit = null
+                }) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showEditDialog = false
+                    taskToEdit = null
+                }) {
+                    Text("Cancelar")
+                }
+            },
+            title = { Text("Editar tarea") },
+            text = {
+                TextField(
+                    value = editedDescription,
+                    onValueChange = { editedDescription = it },
+                    label = { Text("Nueva descripción") }
+                )
+            }
+        )
+    }
+
+
 }
